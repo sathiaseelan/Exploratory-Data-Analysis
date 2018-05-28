@@ -14,6 +14,8 @@ install.packages("dplyr",repos = "http://cran.us.r-project.org")
 library(dplyr)
 install.packages("ggplot2",repos = "http://cran.us.r-project.org")
 library(ggplot2)
+install.packages("knitr",repos = "http://cran.us.r-project.org")
+library(knitr)
 ```
 
 ```{r loading data}
@@ -143,3 +145,6 @@ weekday <- activity_new%>% group_by(interval,weekend)%>% summarise(sum=mean(step
 #Plotting the number of steps in the inverval over the new variable weekend
 ggplot(weekday,aes(interval,sum,col=weekend)) + geom_line() + facet_grid(weekend~.,) + ylab("Number of Steps")
 
+```
+
+# This Conclude the Analysis of Activity data
