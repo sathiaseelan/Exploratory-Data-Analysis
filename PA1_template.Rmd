@@ -1,0 +1,145 @@
+---
+title: "Activity Analysis"
+author: "Sathia"
+date: "5/27/2018"
+output: html_document
+---
+
+
+
+#Loading the activity data into a variable. Make sure the file is in the working directory
+
+```{r installing package, include=FALSE, paged.print=TRUE}
+install.packages("dplyr",repos = "http://cran.us.r-project.org")
+library(dplyr)
+install.packages("ggplot2",repos = "http://cran.us.r-project.org")
+library(ggplot2)
+```
+
+```{r loading data}
+activity <- read.csv("activity.csv")
+head(activity)
+```
+
+#Histogram of the total number of steps for each day(Ignoring the missing value)
+
+```{r Histogram}
+#stepsperday <- with(activity, tapply(steps,date,sum,na.rm=TRUE))
+activitywithoutNA<-activity[complete.cases(activity), ]
+stepsperday <- activitywithoutNA%>% group_by(date)%>% summarise(sum=sum(steps))
+hist(stepsperday$sum,col="blue", main= "Histogram of Daily steps",ylim =c(0,30), xlab="Number of Steps",ylab="Number of days")
+```
+
+#Mean and Median number of steps taken each day.
+
+```{r mean and median}
+na_mean<-round(mean(stepsperday$sum),2)
+na_median<-round(median(stepsperday$sum),2)
+
+```
+The Mean of this data with out NA is `r na_mean` and its median `r na_median`
+
+#The interval with the maximum number of steps 
+
+```{r max set in a interval}
+maxinterval <- activitywithoutNA%>% group_by(interval)%>% summarise(sum=sum(steps))
+maxinterval<-maxinterval[which(maxinterval$sum == max(maxinterval$sum)),]
+interval<-maxinterval$interval
+steps<-maxinterval$sum
+```
+The interval with the Maximun Number of steps `r interval` and its respective steps `r steps`.
+
+#Time series plot on the average number of steps per Interval
+
+```{r timeseries}
+
+# removing the na from the data before calculating the average steps per interval
+activitywithoutNA<-activity[complete.cases(activity), ]
+
+# calcualting the average steps per interval
+avgstepsperint <- activitywithoutNA%>% group_by(interval)%>% summarise(mean=mean(steps))
+
+# plotting the time series for teh above data
+plot(avgstepsperint$mean~avgstepsperint$interval,type="l",xlab="Interval",ylab="Avg no of steps",col="red")
+```
+
+##Imputing the Missing data for further analysis.
+  #1.we will be is the average number of step per day to fill in missing data with their respective dates
+  
+```{r number of rows with missing data}
+rowcount <- sum(is.na(activity$steps))
+```
+The Number of rows with NA is `r rowcount`.
+
+  #2.Imputing the avearage steps per interval in the missing data and creating a new data set
+  
+```{r impute missing data}
+# joining the main data(activity) with the data set(avgstepsperint) where NA was removed and mean was calculated.
+
+activity_new <- left_join(activity,avgstepsperint, by ="interval")
+
+# replacing NA with the mean of its resprctive interval
+
+activity_new$steps <- with(activity_new,ifelse(is.na(steps),mean,steps))
+                           
+head(activity_new)
+
+```
+
+ #3.Creating a histogram with the new imputed data and compating it with the NA data
+ 
+```{r Histogram compare}
+
+# calculating the new mean 
+new_stepsperday <- with(activity_new, tapply(steps,date,sum))
+
+# creatiing a new histogram and ploting it along with precious histogram with NA data
+
+par(mfrow =c(1,2),mar=c(5,4,2,1))
+
+# Histogram for the data set with NA
+hist(stepsperday$sum,col="blue", main= "Histogram of Daily steps \n Without NA data",ylim =c(0,40), xlab="Number of Steps",ylab="Number of days")
+
+# Histogram for data with imputed data
+hist(new_stepsperday,col="green", main= "Histogram of Daily steps \n With Imputed steps",ylim =c(0,40), xlab="Number of Steps",ylab="Number of days")
+
+```
+There is a minor difference in the histogram due to the imputed data.
+
+ #4.Claculating the New mean and median
+ 
+```{r New mean and median}
+ imputed_mean<-round(mean(new_stepsperday),2)
+ imputed_median<-round(median(new_stepsperday),2)
+ 
+```
+The mean of the imputed data set is `r imputed_mean` and its median is `r imputed_median`.
+
+#The difference in mean and Median from the data set with NA and imputed data set
+```{r difference in mean } 
+mean <- imputed_mean - na_mean
+median <- imputed_median - na_median
+
+```
+
+The difference in the mean is `r mean` and its meidan is `r median`.
+
+
+#Creating a new factor variable and adding it to the imputed data set
+```{r new factoer variable}
+activity_new$date<-as.Date(activity_new$date)
+activity_new$weekend<-ifelse(weekdays(activity_new$date,abbreviate=TRUE) %in% c("Sun","Sat"), "Weekend","Weekday")
+activity_new$weekend <- as.factor(activity_new$weekend)
+
+```
+
+#Creating a plot that shows the number of steps in the inverval over the new variable weekend
+
+```{r weekend}
+
+# Aggregrating the number of steps over interval and weekend
+weekday <- activity_new%>% group_by(interval,weekend)%>% summarise(sum=mean(steps))
+
+#Plotting the number of steps in the inverval over the new variable weekend
+ggplot(weekday,aes(interval,sum,col=weekend)) + geom_line() + facet_grid(weekend~.,) + ylab("Number of Steps")
+
